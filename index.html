@@ -9,8 +9,8 @@
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
     <style>
         :root {
-            --bg-primary: #323339;
-            --bg-secondary: #393a41;
+            --bg-primary: #262624;
+            --bg-secondary: #30302e;
             --text-primary: white;
             --text-secondary: #9b9ca3;
             --accent-color: rgb(200, 91, 248);
@@ -442,24 +442,13 @@
                 .on("mouseout", () => tooltip.transition().duration(500).style("opacity", 0));
         }
 
-        // MODIFICATION: Added console.log statements for debugging the zoom feature.
-        // If zoom/pan still fails, check the browser's developer console (F12) for these messages.
         function zoomed(event) {
             const { transform } = event;
-            console.log("--- Zoom Event Triggered ---");
-            console.log("Transform:", transform);
-            console.log("Original xScale Domain:", xScale.domain().map(d => d.toLocaleDateString()));
 
             gChart.attr("transform", transform);
 
             const newXScale = transform.rescaleX(xScale);
             const newYScale = transform.rescaleY(yScale);
-
-            console.log("New xScale Domain:", newXScale.domain().map(d => d.toLocaleDateString()));
-            if (isNaN(newXScale.domain()[0])) {
-                console.error("ERROR: New X-axis scale is invalid. Halting axis update.");
-                return;
-            }
 
             xAxis.call(d3.axisBottom(newXScale).ticks(Math.min(d3.timeDay.count(newXScale.domain()[0], newXScale.domain()[1]), Math.floor(width / 120))).tickFormat(d3.timeFormat("%b %d")))
                 .selectAll("text").style("text-anchor", "end").attr("dx", "-.8em").attr("dy", ".15em").attr("transform", "rotate(-45)");
