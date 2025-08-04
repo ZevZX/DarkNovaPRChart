@@ -1,0 +1,618 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dark Nova PR Chart</title>
+    <script src="https://d3js.org/d3.v7.min.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg-primary: #323339;
+            --bg-secondary: #393a41;
+            --text-primary: white;
+            --text-secondary: #9b9ca3;
+            --accent-color: rgb(200, 91, 248);
+            --button-bg: #1a73e8;
+            --button-hover: #155ab6;
+            --grid-color: #9b9ca3;
+            --tooltip-bg: rgba(0, 0, 0, 0.8);
+            --tooltip-text: #fff;
+        }
+
+        [data-theme="light"] {
+            --bg-primary: #f8f9fa;
+            --bg-secondary: #ffffff;
+            --text-primary: #1a1a1a;
+            --text-secondary: #666666;
+            --accent-color: #6809ca;
+            --button-bg: #1a73e8;
+            --button-hover: #155ab6;
+            --grid-color: #9b9ca3;
+            --tooltip-bg: rgba(0, 0, 0, 0.9);
+            --tooltip-text: #fff;
+        }
+
+        html,
+        body {
+            height: 100%;
+            margin: 0;
+            overflow: hidden;
+        }
+
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: var(--bg-primary);
+            color: var(--text-primary);
+            display: flex;
+            flex-direction: column;
+            padding: 15px;
+            box-sizing: border-box;
+            gap: 15px;
+            transition: background-color 0.3s ease, color 0.3s ease;
+        }
+
+        .header-container {
+            display: flex;
+            align-items: center;
+            flex-shrink: 0;
+            position: relative;
+        }
+
+        h1 {
+            color: var(--accent-color);
+            text-align: center;
+            margin: 0;
+            flex-grow: 1;
+        }
+
+        .theme-toggle {
+            position: absolute;
+            right: 0;
+            background-color: var(--button-bg);
+            color: white;
+            border: none;
+            padding: 8px 16px;
+            border-radius: 5px;
+            cursor: pointer;
+            font-family: 'Inter', sans-serif;
+            font-weight: 600;
+            transition: background-color 0.3s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            min-width: 70px;
+        }
+
+        .theme-toggle:hover {
+            background-color: var(--button-hover);
+        }
+
+        .theme-icon {
+            font-size: 16px;
+        }
+
+        #chart-container {
+            background-color: var(--bg-secondary);
+            border-radius: 12px;
+            padding: 20px;
+            width: 100%;
+            box-sizing: border-box;
+            flex-grow: 1;
+            min-height: 0;
+            display: flex;
+            transition: background-color 0.3s ease;
+        }
+
+        #chart {
+            width: 100%;
+            height: 100%;
+            cursor: move;
+        }
+
+        .tooltip {
+            position: absolute;
+            text-align: center;
+            width: auto;
+            height: auto;
+            padding: 8px;
+            font: 12px sans-serif;
+            background: var(--tooltip-bg);
+            color: var(--tooltip-text);
+            border: 0px;
+            border-radius: 8px;
+            pointer-events: none;
+            opacity: 0;
+            transition: opacity 0.2s;
+        }
+
+        .axis-label {
+            font-size: 14px;
+            font-weight: 600;
+            fill: var(--text-primary);
+        }
+
+        .grid line {
+            stroke: var(--grid-color);
+            stroke-opacity: 0.7;
+            shape-rendering: crispEdges;
+        }
+
+        .grid path {
+            stroke-width: 0;
+        }
+
+        .line {
+            fill: none;
+            stroke-width: 2.5px;
+            transition: opacity 0.3s;
+        }
+
+        .data-point-image {
+            width: 36px;
+            height: 36px;
+            border-radius: 50%;
+            box-sizing: border-box;
+        }
+
+        .data-point-node {
+            cursor: pointer;
+            transition: opacity 0.3s;
+        }
+
+        #legend-container {
+            width: 100%;
+            flex-shrink: 0;
+            box-sizing: border-box;
+        }
+
+        #legend-controls {
+            display: flex;
+            justify-content: center;
+            margin-bottom: 15px;
+        }
+
+        #legend-controls button {
+            background-color: var(--button-bg);
+            color: white;
+            border: none;
+            padding: 8px 16px;
+            margin: 0 5px;
+            border-radius: 5px;
+            cursor: pointer;
+            font-family: 'Inter', sans-serif;
+            font-weight: 600;
+            transition: background-color 0.3s;
+        }
+
+        #legend-controls button:hover {
+            background-color: var(--button-hover);
+        }
+
+        .legend {
+            display: flex;
+            justify-content: center;
+            flex-wrap: wrap;
+        }
+
+        .legend-item {
+            display: flex;
+            align-items: center;
+            margin-right: 20px;
+            margin-bottom: 10px;
+            cursor: pointer;
+            transition: opacity 0.3s;
+        }
+
+        .legend-item.hidden {
+            opacity: 0.4;
+        }
+
+        .legend-image {
+            width: 30px;
+            height: 30px;
+            border-radius: 50%;
+            margin-right: 8px;
+        }
+
+        .legend-text {
+            font-size: 14px;
+            color: var(--text-primary);
+        }
+
+        /* Axis text styling */
+        .tick text {
+            fill: var(--text-primary);
+        }
+
+        .domain {
+            stroke: var(--text-secondary);
+        }
+    </style>
+</head>
+
+<body>
+    <div class="header-container">
+        <div></div>
+        <h1>Dark Nova PR Chart</h1>
+        <button class="theme-toggle" id="theme-toggle">
+            <span class="theme-text">Dark</span>
+        </button>
+    </div>
+    <div id="chart-container">
+        <svg id="chart"></svg>
+    </div>
+    <div id="legend-container">
+        <div id="legend-controls">
+            <button id="show-all">Show All</button>
+            <button id="hide-all">Hide All</button>
+        </div>
+        <div id="legend" class="legend"></div>
+    </div>
+    <div class="tooltip"></div>
+
+
+    <script>
+        // --- THEME MANAGEMENT ---
+        const themeToggle = document.getElementById('theme-toggle');
+        const themeIcon = document.querySelector('.theme-icon');
+        const themeText = document.querySelector('.theme-text');
+
+        // Initialize theme
+        let currentTheme = 'dark';
+        document.documentElement.setAttribute('data-theme', currentTheme);
+
+        function toggleTheme() {
+            currentTheme = currentTheme === 'dark' ? 'light' : 'dark';
+            document.documentElement.setAttribute('data-theme', currentTheme);
+
+            if (currentTheme === 'light') {
+                themeText.textContent = 'Light';
+            } else {
+                themeText.textContent = 'Dark';
+            }
+
+            // Update chart colors when theme changes
+            if (processedData && processedData.length > 0) {
+                updateChart();
+            }
+
+            // Update legend colors when theme changes
+            const legend = d3.select("#legend");
+            legend.selectAll(".legend-item").html(d => {
+                const colorMap = currentTheme === 'light' ? playerColorMapLight : playerColorMap;
+                const color = colorMap[d] || '#cccccc';
+                const imageUrl = playerImageMap[d] || 'https://placehold.co/40x40/cccccc/FFFFFF?text=?';
+                return `<img class="legend-image" src="${imageUrl}">
+            <span class="legend-text" style="border-bottom: 3px solid ${color}; padding-bottom: 2px; line-height: 1.1;">${d}</span>`;
+            });
+        }
+
+        themeToggle.addEventListener('click', toggleTheme);
+
+        // --- CONFIGURATION ---
+        const googleSheetUrl = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vSEUGZgYqfpGDyzY7JrvebWX-_9-VBVYBhnPscYgN9eu9RVuDmPrhJOKTFLLgWnVt3S_bS3qNqvRL8-/pub?output=csv';
+
+        const playerImageMap = {
+            'A$TA': '/images/A$TA.jpg',
+            'Aadam': '/images/Aadam.jpg',
+            'DarkJak': '/images/DarkJak.jpg',
+            'GalaxyNova': '/images/GalaxyNova.png',
+            'Lozman': '/images/Lozman.png',
+            'Mad Dog': '/images/Mad Dog.jpg',
+            'Oracle': '/images/Oracle.jpg',
+            'PrismLX': '/images/PrismLX.jpg',
+            'Sheion': '/images/Sheion.png',
+            'Sola': '/images/Sola.jpg',
+            'Spicket11': '/images/Spicket11.jpg',
+            'Yeah': '/images/Yeah.jpg',
+            'Zev': '/images/Zev.png'
+        };
+
+        const playerColorMap = {
+            'A$TA': 'rgb(200, 221, 226)',
+            'Aadam': 'rgb(250, 236, 224)',
+            'DarkJak': 'rgb(4, 109, 167)',
+            'GalaxyNova': 'rgb(98, 112, 177)',
+            'Lozman': 'rgb(221, 220, 207)',
+            'Mad Dog': 'rgb(115, 140, 144)',
+            'Oracle': 'rgb(123, 194, 241)',
+            'PrismLX': 'rgb(220, 87, 71)',
+            'Sheion': 'rgb(49, 184, 221)',
+            'Sola': 'rgb(198, 141, 98)',
+            'Spicket11': 'rgb(179, 104, 45)',
+            'Yeah': 'rgb(79, 161, 148)',
+            'Zev': '#0456b9'
+        };
+
+        const playerColorMapLight = {
+            'A$TA': 'rgb(100, 121, 126)',
+            'Aadam': 'rgb(150, 136, 124)',
+            'DarkJak': 'rgb(2, 69, 107)',
+            'GalaxyNova': 'rgb(58, 72, 137)',
+            'Lozman': 'rgb(121, 120, 107)',
+            'Mad Dog': 'rgb(75, 100, 104)',
+            'Oracle': 'rgb(83, 154, 201)',
+            'PrismLX': 'rgb(180, 47, 31)',
+            'Sheion': 'rgb(9, 144, 181)',
+            'Sola': 'rgb(158, 101, 58)',
+            'Spicket11': 'rgb(139, 64, 5)',
+            'Yeah': 'rgb(39, 121, 108)',
+            'Zev': '#0456b9'
+        };
+
+        // --- D3.JS CODE ---
+        const margin = { top: 20, right: 20, bottom: 80, left: 60 };
+        const chartContainer = document.getElementById('chart-container');
+        let processedData;
+        let hiddenPlayers = new Set();
+        let width, height;
+
+        const svg = d3.select("#chart");
+
+        const g = svg.append("g")
+            .attr("transform", `translate(${margin.left},${margin.top})`);
+
+        g.append("defs").append("clipPath")
+            .attr("id", "clip")
+            .append("rect");
+
+        const grid = g.append("g").attr("class", "grid");
+        const xAxis = g.append("g");
+        const yAxis = g.append("g");
+        const gChart = g.append("g").attr("clip-path", "url(#clip)");
+
+        const tooltip = d3.select(".tooltip");
+        const parseTime = d3.timeParse("%b %d");
+
+        const xScale = d3.scaleTime();
+        const yScale = d3.scaleLinear();
+
+        function updateChart() {
+            width = chartContainer.clientWidth - margin.left - margin.right;
+            height = chartContainer.clientHeight - margin.top - margin.bottom;
+
+            svg.attr("width", chartContainer.clientWidth).attr("height", chartContainer.clientHeight);
+            g.select("#clip rect").attr("width", width).attr("height", height);
+
+            zoom.extent([
+                [0, 0],
+                [width, height]
+            ]).translateExtent([
+                [0, 0],
+                [width, height]
+            ]);
+
+            const visibleData = processedData.filter(d => !hiddenPlayers.has(d.player));
+
+            const xDomain = d3.extent(processedData, d => d.date);
+            if (xDomain[0] && xDomain[1]) {
+                const timeRange = xDomain[1].getTime() - xDomain[0].getTime();
+                const buffer = timeRange * 0.05;
+                xScale.domain([new Date(xDomain[0].getTime() - buffer), new Date(xDomain[1].getTime() + buffer)]);
+            } else {
+                xScale.domain(xDomain);
+            }
+            xScale.range([0, width]);
+
+            const yDomain = d3.extent(visibleData, d => d.points);
+            const yBuffer = (yDomain[1] - yDomain[0]) * 0.1 || 1;
+            yScale.range([height, 0]).domain([yDomain[0] - yBuffer, yDomain[1] + yBuffer]);
+
+            xAxis.attr("transform", `translate(0,${height})`)
+                .call(d3.axisBottom(xScale).ticks(Math.min(d3.timeDay.count(xScale.domain()[0], xScale.domain()[1]), Math.floor(width / 120))).tickFormat(d3.timeFormat("%b %d")))
+                .selectAll("text").style("text-anchor", "end").attr("dx", "-.8em").attr("dy", ".15em").attr("transform", "rotate(-45)");
+
+            yAxis.call(d3.axisLeft(yScale));
+
+            grid.call(d3.axisLeft(yScale).tickSize(-width).tickFormat(""));
+
+            const dataByGroup = d3.group(visibleData, d => d.player);
+            dataByGroup.forEach(playerData => playerData.sort((a, b) => d3.ascending(a.date, b.date)));
+
+            const line = d3.line().x(d => xScale(d.date)).y(d => yScale(d.points));
+
+            gChart.selectAll(".line")
+                .data(Array.from(dataByGroup), d => d[0])
+                .join("path")
+                .attr("class", "line")
+                .attr("d", d => line(d[1]))
+                .style("stroke", d => {
+                    const colorMap = currentTheme === 'light' ? playerColorMapLight : playerColorMap;
+                    return colorMap[d[0]] || '#cccccc';
+                });
+
+            gChart.selectAll(".data-point-node")
+                .data(visibleData, d => `${d.player}-${d.date}`)
+                .join("foreignObject")
+                .attr("class", "data-point-node")
+                .attr("width", 36)
+                .attr("height", 36)
+                .attr("x", d => xScale(d.displayX) - 18)
+                .attr("y", d => yScale(d.displayY) - 18)
+                .html(d => `<img src="${d.imageUrl}" class="data-point-image">`)
+                .on("mouseover", (event, d) => {
+                    tooltip.transition().duration(200).style("opacity", .9);
+                    tooltip.html(`<strong>${d.player}</strong><br/>Points: ${d.points}`)
+                        .style("left", (event.pageX + 10) + "px")
+                        .style("top", (event.pageY - 28) + "px");
+                })
+                .on("mouseout", () => tooltip.transition().duration(500).style("opacity", 0));
+        }
+
+        // MODIFICATION: Added console.log statements for debugging the zoom feature.
+        // If zoom/pan still fails, check the browser's developer console (F12) for these messages.
+        function zoomed(event) {
+            const { transform } = event;
+            console.log("--- Zoom Event Triggered ---");
+            console.log("Transform:", transform);
+            console.log("Original xScale Domain:", xScale.domain().map(d => d.toLocaleDateString()));
+
+            gChart.attr("transform", transform);
+
+            const newXScale = transform.rescaleX(xScale);
+            const newYScale = transform.rescaleY(yScale);
+
+            console.log("New xScale Domain:", newXScale.domain().map(d => d.toLocaleDateString()));
+            if (isNaN(newXScale.domain()[0])) {
+                console.error("ERROR: New X-axis scale is invalid. Halting axis update.");
+                return;
+            }
+
+            xAxis.call(d3.axisBottom(newXScale).ticks(Math.min(d3.timeDay.count(newXScale.domain()[0], newXScale.domain()[1]), Math.floor(width / 120))).tickFormat(d3.timeFormat("%b %d")))
+                .selectAll("text").style("text-anchor", "end").attr("dx", "-.8em").attr("dy", ".15em").attr("transform", "rotate(-45)");
+            yAxis.call(d3.axisLeft(newYScale));
+            grid.call(d3.axisLeft(newYScale).tickSize(-width).tickFormat(""));
+        }
+
+        const zoom = d3.zoom()
+            .scaleExtent([0.5, 20])
+            .on("zoom", zoomed);
+
+        svg.call(zoom);
+
+        d3.csv(googleSheetUrl).then(data => {
+            const players = data.columns.slice(1);
+            let allParsedData = [];
+
+            data.forEach(row => {
+                const date = parseTime(row.Date);
+                if (date) {
+                    players.forEach(player => {
+                        if (row[player] && row[player] !== 'NaN' && !isNaN(+row[player])) {
+                            allParsedData.push({ date: date, player: player, points: +row[player], imageUrl: playerImageMap[player] || 'https://placehold.co/40x40/cccccc/FFFFFF?text=?' });
+                        }
+                    });
+                }
+            });
+
+            // MODIFICATION: Find the latest date in the entire dataset
+            const maxDate = d3.max(allParsedData, d => d.date);
+
+            const dataByPlayer = d3.group(allParsedData, d => d.player);
+            processedData = [];
+            dataByPlayer.forEach((playerData, player) => {
+                // MODIFICATION: Create a temporary array to hold this player's points before adding to the main dataset
+                let playerPoints = [];
+                let hasStarted = false;
+                let lastRecordedScore = null;
+
+                playerData.sort((a, b) => a.date - b.date);
+
+                playerData.forEach(d => {
+                    if (d.points !== 0) {
+                        hasStarted = true;
+                    }
+
+                    if (hasStarted) {
+                        if (d.points !== lastRecordedScore) {
+                            playerPoints.push(d);
+                            lastRecordedScore = d.points;
+                        }
+                    }
+                });
+
+                // MODIFICATION: Extend the line to the final date if needed
+                if (playerPoints.length > 0) {
+                    const lastPoint = playerPoints[playerPoints.length - 1];
+                    // Check if the last point's date is before the global max date
+                    if (maxDate && lastPoint.date.getTime() < maxDate.getTime()) {
+                        playerPoints.push({
+                            ...lastPoint, // copy player, points, imageUrl
+                            date: maxDate, // set date to the global max date
+                        });
+                    }
+                }
+
+                // Add the finalized points for this player to the main array
+                processedData.push(...playerPoints);
+            });
+
+
+            // Jitter logic for overlapping points
+            const initialWidth = chartContainer.clientWidth - margin.left - margin.right;
+            const tempXScale = d3.scaleTime()
+                .domain(d3.extent(processedData, d => d.date))
+                .range([0, initialWidth]);
+
+            const pointsByPosition = d3.group(processedData, d => `${d.date.getTime()}-${d.points}`);
+            pointsByPosition.forEach(group => {
+                if (group.length > 1) {
+                    const imageSpacing = 26;
+                    const totalRowWidth = (group.length - 1) * imageSpacing;
+
+                    group.forEach((d, i) => {
+                        d.displayY = d.points;
+                        const originalX = tempXScale(d.date);
+                        const offset = (i * imageSpacing) - (totalRowWidth / 2);
+                        d.displayX = tempXScale.invert(originalX + offset);
+                    });
+                } else if (group.length > 0) {
+                    group[0].displayX = group[0].date;
+                    group[0].displayY = group[0].points;
+                }
+            });
+
+            if (processedData.length === 0) {
+                updateChart();
+                g.append("text")
+                    .attr("x", width / 2)
+                    .attr("y", height / 2)
+                    .attr("text-anchor", "middle")
+                    .text("No valid data found.");
+                return;
+            }
+
+            const legend = d3.select("#legend");
+            legend.selectAll(".legend-item")
+                .data(players)
+                .join("div")
+                .attr("class", "legend-item")
+                .on("click", (event, d) => {
+                    if (hiddenPlayers.has(d)) {
+                        hiddenPlayers.delete(d);
+                    } else {
+                        hiddenPlayers.add(d);
+                    }
+                    updateChart();
+                    legend.selectAll(".legend-item").classed("hidden", p => hiddenPlayers.has(p));
+                })
+                .html(d => {
+                    const colorMap = currentTheme === 'light' ? playerColorMapLight : playerColorMap;
+                    const color = colorMap[d] || '#cccccc';
+                    const imageUrl = playerImageMap[d] || 'https://placehold.co/40x40/cccccc/FFFFFF?text=?';
+                    return `<img class="legend-image" src="${imageUrl}">
+                            <span class="legend-text" style="border-bottom: 3px solid ${color}; padding-bottom: 2px; line-height: 1.1;">${d}</span>`;
+                });
+
+            d3.select("#show-all").on("click", () => {
+                hiddenPlayers.clear();
+                updateChart();
+                legend.selectAll(".legend-item").classed("hidden", false);
+            });
+            d3.select("#hide-all").on("click", () => {
+                players.forEach(p => hiddenPlayers.add(p));
+                updateChart();
+                legend.selectAll(".legend-item").classed("hidden", true);
+            });
+
+            updateChart();
+
+        }).catch(error => {
+            console.error('Error loading or parsing data:', error);
+            updateChart();
+            g.append("text").attr("x", width / 2).attr("y", height / 2).attr("text-anchor", "middle").text("Error loading data.");
+        });
+
+        window.addEventListener('resize', () => {
+            if (processedData && processedData.length > 0) {
+                svg.call(zoom.transform, d3.zoomIdentity);
+                updateChart();
+            }
+        });
+    </script>
+</body>
+
+</html>
