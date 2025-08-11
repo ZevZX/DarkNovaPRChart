@@ -152,8 +152,8 @@
         }
 
         .data-point-image {
-            width: 36px;
-            height: 36px;
+            width: 24px;
+            height: 24px;
             border-radius: 50%;
             box-sizing: border-box;
         }
@@ -444,10 +444,10 @@
                 .data(visibleData, d => `${d.player}-${d.date}`)
                 .join("foreignObject")
                 .attr("class", "data-point-node")
-                .attr("width", 36)
-                .attr("height", 36)
-                .attr("x", d => xScale(d.displayX) - 18)
-                .attr("y", d => yScale(d.displayY) - 18)
+                .attr("width", 24)
+                .attr("height", 24)
+                .attr("x", d => xScale(d.displayX) - 12)
+                .attr("y", d => yScale(d.displayY) - 12)
                 .html(d => `<img src="${d.imageUrl}" class="data-point-image">`)
                 .on("mouseover", (event, d) => {
                     tooltip.transition().duration(200).style("opacity", .9);
